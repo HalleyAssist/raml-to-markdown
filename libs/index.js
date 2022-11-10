@@ -28,7 +28,9 @@ module.exports.FileSplitting = {
     /** Put all results into one big file. */
     AllInOne : 'AllInOne',
     /** Create one result file per resource. */
-    OnePerResource : 'OnePerResource'
+    OnePerResource : 'OnePerResource',
+    /** Create one result file per resource but handles versioning. */
+    OnePerResourceVersioning : 'OnePerResourceVersioning',
 }
 
 /**
@@ -39,6 +41,7 @@ module.exports.FileSplitting = {
  * @prop {boolean} input.recursive - Whenever to walk recursively through proviced directory paths.
  * @prop {RegExp} input.fileFilter - Regular Expression or function for more advanced filtering of files and directories to include.
  * @prop {string} input.templateFile - Nunjucks template file used to create templated output.
+ * @prop {string} input.homeTemplateFile - Nunjucks template file used to generate a Home page (for GitHub) when using the "OnePerResourceVersioning" splitting option
  * @prop {string} input.contentFilter - Provides a pre-render content filter.
  * @prop {object} output - Output configuration.
  * @prop {OutputType} output.type - Output type configuration.
@@ -123,6 +126,54 @@ module.exports.render = function(config)
                             helper.mkdirp(filePath);
 
                         fs.writeFileSync(filePath, rendered);
+                    });
+                });
+            }
+            else if(outputSplitting === this.FileSplitting.OnePerResourceVersioning)
+            {
+                helper.each(files, item =>
+                {
+                    var homeTemplateFile = config.input.homeTemplateFile && pathJs.resolve(config.input.homeTemplateFile);
+                    
+                    // Create sorted contents page
+                    var versionEndpoints = item.resources[0].resources
+                    versionEndpoints.sort((a,b)=>{
+                        if (a.displayName[0] < b.displayName[0])
+                            return -1
+                        if (a.displayName[0] > b.displayName[0])
+                            return 1
+                        return 0
+                    })
+                    
+                    var renderedVersion = nunjucks.render(homeTemplateFile, item);
+                        
+                    renderedVersion = (contentFilter && contentFilter(renderedVersion)) || renderedVersion;
+
+                    const filePathVersion = pathJs.join(outputPath, 'Home' + outputExt);
+
+                    if(!fs.existsSync(filePathVersion))
+                        helper.mkdirp(filePathVersion);
+
+                    fs.writeFileSync(filePathVersion, renderedVersion);
+
+                    helper.each(item.resources, version =>
+                    {
+                        helper.each(version.resources, res =>
+                            {
+                                // Create page for each resource of each version
+                                item.resources = [ res ];
+
+                                var rendered = nunjucks.render(templateFile, item);
+                                
+                                rendered = (contentFilter && contentFilter(rendered)) || rendered;
+        
+                                const filePath = pathJs.join(outputPath, res.displayName + '_' + version.uniqueId + outputExt);
+        
+                                if(!fs.existsSync(filePath))
+                                    helper.mkdirp(filePath);
+        
+                                fs.writeFileSync(filePath, rendered);
+                            });
                     });
                 });
             }
