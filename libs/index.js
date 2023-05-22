@@ -136,15 +136,20 @@ module.exports.render = function(config)
                     var homeTemplateFile = config.input.homeTemplateFile && pathJs.resolve(config.input.homeTemplateFile);
                     
                     // Create sorted contents page
-                    var versionEndpoints = item.resources[0].resources
-                    versionEndpoints.sort((a,b)=>{
-                        if (a.displayName[0] < b.displayName[0])
-                            return -1
-                        if (a.displayName[0] > b.displayName[0])
-                            return 1
-                        return 0
-                    })
-                    
+                    for (const version of item.resources){
+                        var versionEndpoints = version.resources
+                        if (!versionEndpoints || !versionEndpoints.length)
+                            continue
+
+                        versionEndpoints.sort((a,b)=>{
+                            if (a.displayName[0] < b.displayName[0])
+                                return -1
+                            if (a.displayName[0] > b.displayName[0])
+                                return 1
+                            return 0
+                        })
+                    }
+
                     var renderedVersion = nunjucks.render(homeTemplateFile, item);
                         
                     renderedVersion = (contentFilter && contentFilter(renderedVersion)) || renderedVersion;
