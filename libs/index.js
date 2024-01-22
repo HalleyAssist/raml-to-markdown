@@ -133,28 +133,35 @@ module.exports.render = function(config)
             {
                 helper.each(files, item =>
                 {
-                    var homeTemplateFile = config.input.homeTemplateFile && pathJs.resolve(config.input.homeTemplateFile);
-                    
                     // Create sorted contents page
-                    var versionEndpoints = item.resources[0].resources
-                    versionEndpoints.sort((a,b)=>{
-                        if (a.displayName[0] < b.displayName[0])
-                            return -1
-                        if (a.displayName[0] > b.displayName[0])
-                            return 1
-                        return 0
-                    })
-                    
-                    var renderedVersion = nunjucks.render(homeTemplateFile, item);
+                    for (const version of item.resources){
+                        var versionEndpoints = version.resources
+                        if (!versionEndpoints || !versionEndpoints.length)
+                            continue
+
+                        versionEndpoints.sort((a,b)=>{
+                            if (a.displayName[0] < b.displayName[0])
+                                return -1
+                            if (a.displayName[0] > b.displayName[0])
+                                return 1
+                            return 0
+                        })
+                    }
+
+                    // Create a home page if a template is provided
+                    var homeTemplateFile = config.input.homeTemplateFile && pathJs.resolve(config.input.homeTemplateFile);
+                    if (homeTemplateFile){
+                        var renderedVersion = nunjucks.render(homeTemplateFile, item);
                         
-                    renderedVersion = (contentFilter && contentFilter(renderedVersion)) || renderedVersion;
-
-                    const filePathVersion = pathJs.join(outputPath, 'Home' + outputExt);
-
-                    if(!fs.existsSync(filePathVersion))
-                        helper.mkdirp(filePathVersion);
-
-                    fs.writeFileSync(filePathVersion, renderedVersion);
+                        renderedVersion = (contentFilter && contentFilter(renderedVersion)) || renderedVersion;
+    
+                        const filePathVersion = pathJs.join(outputPath, 'Home' + outputExt);
+    
+                        if(!fs.existsSync(filePathVersion))
+                            helper.mkdirp(filePathVersion);
+    
+                        fs.writeFileSync(filePathVersion, renderedVersion);
+                    }
 
                     helper.each(item.resources, version =>
                     {
